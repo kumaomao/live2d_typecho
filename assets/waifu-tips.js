@@ -25,7 +25,6 @@ live2d_settings['tipsMessage']          = 'waifu-tips.json';            // 同�
 live2d_settings['hitokotoAPI']          = 'lwl12.com';                  // 一言 API，可选 'lwl12.com', 'hitokoto.cn', 'jinrishici.com'(古诗词)
 
 // 默认模型
-live2d_settings['modelId']              = 1;            // 默认模型 ID，可在 F12 控制台找到
 live2d_settings['modelTexturesId']      = 53;           // 默认材质 ID，可在 F12 控制台找到
 
 // 工具栏设置
@@ -67,7 +66,7 @@ live2d_settings['waifuDraggableRevert'] = false;         // 松开鼠标还原�
 live2d_settings['l2dVersion']           = '1.4.2';        // 当前版本
 live2d_settings['l2dVerDate']           = '2018.11.12'; // 版本更新日期
 live2d_settings['homePageUrl']          = 'auto';       // 主页地址，可选 'auto'(自动), '{URL 网址}'
-live2d_settings['aboutPageUrl']         = 'https://www.fghrsh.net/post/123.html';   // 关于页地址, '{URL 网址}'
+live2d_settings['aboutPageUrl']         = 'http://kumoamoa.net';   // 关于页地址, '{URL 网址}'
 live2d_settings['screenshotCaptureName']= 'live2d.png'; // 看板娘截图文件名，例如 'live2d.png'
 
 /****************************************************************************************************/
@@ -90,6 +89,27 @@ String.prototype.render = function(context) {
         return currentObject;
     });
 };
+
+//判断图片是否存在
+function isJsonExist(url){
+	if(url.length==0){
+	return false;
+	}
+	var isExist=true;
+	$.ajax(url, {
+	         type: 'get',
+	         async:false,//取消ajax的异步实现
+	         timeout: 1000,
+	         success: function(data) {
+				isExist = data;
+	         },
+	         error: function() {
+	        	isExist = false;  
+	         }
+	    });
+	return isExist;
+}
+
 
 var re = /x/;
 console.log(re);
@@ -189,17 +209,32 @@ function initModel(waifuPath, type) {
     if (!live2d_settings.modelStorage || modelId == null) {
         var modelId = live2d_settings.modelId;
         var modelTexturesId = live2d_settings.modelTexturesId;
-    } loadModel(modelId, modelTexturesId);
+    }
+    loadModel();
 }
 
-function loadModel(modelId, modelTexturesId=0) {
-    if (live2d_settings.modelStorage) {
-        localStorage.setItem('modelId', modelId);
-        localStorage.setItem('modelTexturesId', modelTexturesId);
-    } else {
-        sessionStorage.setItem('modelId', modelId);
-        sessionStorage.setItem('modelTexturesId', modelTexturesId);
-    } loadlive2d('live2d', live2d_settings.modelAPI, (live2d_settings.showF12Status ? console.log('[Status]','live2d','模型',0,'加载完成'):null));
+
+function modelStorageGetItem(key) { return live2d_settings.modelStorage ? localStorage.getItem(key) : sessionStorage.getItem(key); }
+function get_model(modelId = false,themes_arr=false){
+    //模型id
+    if(modelId===false){
+        modelId = modelStorageGetItem('live2d_model_id');
+    }
+    if(themes_arr === false){
+        var themes = modelStorageGetItem('live2d_themes');
+        //已有模型列表
+        var themes_arr = themes.split(',');
+    }
+
+    themes = themes_arr[modelId];
+    return themes;
+}
+
+//加载模型
+function loadModel() {
+    //获取初始模型id
+    themes = get_model();
+    loadlive2d('live2d', live2d_settings.modelAPI+themes+'/model.json', (live2d_settings.showF12Status ? console.log('[Status]','live2d','模型',themes,'加载完成'):null));
     //loadlive2d('live2d', live2d_settings.modelAPI+'get/?id='+modelId+'-'+modelTexturesId, (live2d_settings.showF12Status ? console.log('[Status]','live2d','模型',modelId+'-'+modelTexturesId,'加载完成'):null));
 }
 
@@ -295,22 +330,51 @@ function loadTipsMessage(result) {
     }; if (live2d_settings.showWelcomeMessage) showWelcomeMessage(result);
     
     var waifu_tips = result.waifu;
-    
+
+    //切换模型
     function loadOtherModel() {
-        var modelId = modelStorageGetItem('modelId');
+        var modelId = modelStorageGetItem('live2d_model_id');
+        var themes = modelStorageGetItem('live2d_themes');
+        //已有模型列表
+        var themes_arr = themes.split(',');
         var modelRandMode = live2d_settings.modelRandMode;
+ 		themes_length = themes_arr.length;
+        //switch顺序，rand随机
+        if(modelRandMode == 'switch'){
+            modelId = modelId==themes_length-1?0:++modelId;
+        }else{
+            //随机
+            rand_num = Math.floor(Math.random()*(themes_length-1)+1);
+            if(rand_num == modelId){
+                modelId = rand_num==themes_length-1?0:++rand_num;
+            }else{
+                modelId = rand_num;
+            }
+        }
+
+        themes = get_model(modelId,themes_arr);
+        localStorage.live2d_model_id = modelId;
+        
+        //判断是否有自定义单独配置
+        user_config = isJsonExist(live2d_settings.modelAPI+themes+'/config.json');
+        if(user_config){
+        	$.each(user_config,function(name,value) {
+				live2d_settings[name] = value;
+			});
+        }
+        
         
         $.ajax({
-            cache: modelRandMode == 'switch' ? true : false,
-            url: live2d_settings.modelAPI+modelRandMode+'/?id='+modelId,
+            url: live2d_settings.modelAPI+themes+'/model.json',
             dataType: "json",
             success: function(result) {
-                loadModel(result.model['id']);
+                loadModel(modelId);
                 var message = result.model['message'];
                 $.each(waifu_tips.model_message, function(i,val) {if (i==result.model['id']) message = getRandText(val)});
                 showMessage(message, 3000, true);
             }
         });
+        
     }
     
     function loadRandTextures() {
@@ -331,7 +395,7 @@ function loadTipsMessage(result) {
         });
     }
     
-    function modelStorageGetItem(key) { return live2d_settings.modelStorage ? localStorage.getItem(key) : sessionStorage.getItem(key); }
+
     
     /* 检测用户活动状态，并在空闲时显示一言 */
     if (live2d_settings.showHitokoto) {
