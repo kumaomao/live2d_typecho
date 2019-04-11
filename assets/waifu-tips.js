@@ -22,7 +22,7 @@ window.live2d_settings = Array(); /*
 // 后端接口
 live2d_settings['modelAPI']             = '//live2d.fghrsh.net/api/';   // 自建 API 修改这里
 live2d_settings['tipsMessage']          = 'waifu-tips.json';            // 同目录下可省略路径
-live2d_settings['hitokotoAPI']          = 'lwl12.com';                  // 一言 API，可选 'lwl12.com', 'hitokoto.cn', 'jinrishici.com'(古诗词)
+live2d_settings['hitokotoAPI']          = 0;
 
 // 默认模型
 live2d_settings['modelTexturesId']      = 53;           // 默认材质 ID，可在 F12 控制台找到
@@ -66,7 +66,7 @@ live2d_settings['waifuDraggableRevert'] = false;         // 松开鼠标还原�
 live2d_settings['l2dVersion']           = '1.4.2';        // 当前版本
 live2d_settings['l2dVerDate']           = '2018.11.12'; // 版本更新日期
 live2d_settings['homePageUrl']          = 'auto';       // 主页地址，可选 'auto'(自动), '{URL 网址}'
-live2d_settings['aboutPageUrl']         = 'http://kumoamoa.net';   // 关于页地址, '{URL 网址}'
+live2d_settings['aboutPageUrl']         = 'http://kumaomao.net';   // 关于页地址, '{URL 网址}'
 live2d_settings['screenshotCaptureName']= 'live2d.png'; // 看板娘截图文件名，例如 'live2d.png'
 
 /****************************************************************************************************/
@@ -175,12 +175,10 @@ function initModel(waifuPath, type) {
     if (window.location.protocol == 'file:' && live2d_settings.modelAPI.substr(0,2) == '//') live2d_settings.modelAPI = 'http:'+live2d_settings.modelAPI;
     
     $('.waifu-tool .fui-home').click(function (){
-        //window.location = 'https://www.fghrsh.net/';
         window.location = live2d_settings.homePageUrl;
     });
     
     $('.waifu-tool .fui-info-circle').click(function (){
-        //window.open('https://imjad.cn/archives/lab/add-dynamic-poster-girl-with-live2d-to-your-blog-02');
         window.open(live2d_settings.aboutPageUrl);
     });
     
@@ -421,47 +419,15 @@ function loadTipsMessage(result) {
     }
     
     function showHitokoto() {
-    	switch(live2d_settings.hitokotoAPI) {
-    	    case 'lwl12.com':
-    	        $.getJSON('https://api.lwl12.com/hitokoto/v1?encode=realjson',function(result){
-        	        if (!empty(result.source)) {
-                        var text = waifu_tips.hitokoto_api_message['lwl12.com'][0];
-                        if (!empty(result.author)) text += waifu_tips.hitokoto_api_message['lwl12.com'][1];
-                        text = text.render({source: result.source, creator: result.author});
-                        window.setTimeout(function() {showMessage(text+waifu_tips.hitokoto_api_message['lwl12.com'][2], 3000, true);}, 5000);
-                    } showMessage(result.text, 5000, true);
-                });break;
-    	    case 'fghrsh.net':
-    	        $.getJSON('https://api.fghrsh.net/hitokoto/rand/?encode=jsc&uid=3335',function(result){
-            	    if (!empty(result.source)) {
-                        var text = waifu_tips.hitokoto_api_message['fghrsh.net'][0];
-                        text = text.render({source: result.source, date: result.date});
-                        window.setTimeout(function() {showMessage(text, 3000, true);}, 5000);
-                        showMessage(result.hitokoto, 5000, true);
-            	    }
-                });break;
-            case 'jinrishici.com':
-                $.ajax({
-                    url: 'https://v2.jinrishici.com/one.json',
-                    xhrFields: {withCredentials: true},
-                    success: function (result, status) {
-                        if (!empty(result.data.origin.title)) {
-                            var text = waifu_tips.hitokoto_api_message['jinrishici.com'][0];
-                            text = text.render({title: result.data.origin.title, dynasty: result.data.origin.dynasty, author:result.data.origin.author});
-                            window.setTimeout(function() {showMessage(text, 3000, true);}, 5000);
-                        } showMessage(result.data.content, 5000, true);
-                    }
-                });break;
-    	    default:
-    	        $.getJSON('https://v1.hitokoto.cn',function(result){
-            	    if (!empty(result.from)) {
-                        var text = waifu_tips.hitokoto_api_message['hitokoto.cn'][0];
-                        text = text.render({source: result.from, creator: result.creator});
-                        window.setTimeout(function() {showMessage(text, 3000, true);}, 5000);
-            	    }
-                    showMessage(result.hitokoto, 5000, true);
-                });
-    	}
+        var api = live2d_settings.aboutPageUrl+'/usr/plugins/Live2d/Hitokoto.php?key='+(live2d_settings.hitokotoAPI+1);
+        $.getJSON(api,function(result){
+            if (!empty(result.data)) {
+                var text = result.template;
+                text = text.render({source: result.data.source, creator: result.data.author});
+                window.setTimeout(function() {showMessage(text, 3000, true);}, 5000);
+            }
+            showMessage(result.data.text, 5000, true);
+        });
     }
     
     $('.waifu-tool .fui-eye').click(function (){loadOtherModel()});

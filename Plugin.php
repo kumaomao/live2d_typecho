@@ -7,7 +7,7 @@
  * @version 1.0.0
  * @link
  */
-
+require_once __DIR__.'/Hitokoto.php';
 class Live2d_Plugin implements Typecho_Plugin_Interface
 {
 
@@ -24,6 +24,8 @@ class Live2d_Plugin implements Typecho_Plugin_Interface
         $themes = self::get_themes();
         $live2d_themes = new Typecho_Widget_Helper_Form_Element_Select('live2d_themes',$themes,null,_t('选择默认模型包'));
         $form->addInput($live2d_themes);
+        $live2d_hitokotoAPI = new Typecho_Widget_Helper_Form_Element_Select('live2d_hitokotoAPI',Hitokoto::get_key(),null,_t('选择一言接口'));
+        $form->addInput($live2d_hitokotoAPI);
 		//工具栏
 		$live2d_canTurnToHomePage = new Typecho_Widget_Helper_Form_Element_Checkbox('live2d_canTurnToHomePage',['显示返回首页按钮'],'0',_t('工具栏详细设定'));
 	    $form->addInput($live2d_canTurnToHomePage);
@@ -150,7 +152,7 @@ eof;
         echo "<script>!window.jQuery && document.write(\"";
         echo "<script src='".$ppd."/Live2d/assets/jquery.js'><\/script>";
         echo "\")</script>";
-
+        echo "<script src='".$ppd."/Live2d/jqueryui/jquery-ui.js'></script> \n";
         echo "<script src='".$ppd."/Live2d/assets/waifu-tips.js'></script> \n";
         echo "<script src='".$ppd."/Live2d/assets/live2d.js'></script> \n";
 
@@ -162,6 +164,7 @@ eof;
     public static function header(){
         $ppd = Helper::options()->pluginUrl;
         echo "<link rel='stylesheet' href='".$ppd."/Live2d/assets/waifu.css' />";
+        echo "<link rel='stylesheet' href='".$ppd."/Live2d/jqueryui/jquery-ui.css' />";
         self::get_themes();
 		
     }
@@ -173,7 +176,7 @@ eof;
         $themes_path = $path.'/Live2d/themes/';
         $json = json_encode($themes_list);
         $live2d_themes= urldecode($json);
-		$live2d_config = self::get_config($themes_path.$themes_list[$themes_index]);
+		$live2d_config = self::get_config();
         $script = <<<eof
 live2d_settings['modelAPI'] = '{$themes_path}';
 localStorage.live2d_themes = {$live2d_themes};
@@ -196,15 +199,14 @@ eof;
         //重建数组索引
         sort($list);
         return $list;
-
-
     }
 
+
 	//获取用户设置
-	private static function get_config($theme_path){
+	private static function get_config(){
 		$config = Typecho_Widget::widget('Widget_Options')->Plugin('Live2d');
 		//用户设置选项
-		$config_option_arr = ['canTurnToHomePage','canSwitchHitokoto','canSwitchModel','canSwitchTextures','canTakeScreenshot','canTurnToAboutPage','canCloseLive2d','modelStorage','modelRandMode','modelTexturesRandMode','showHitokoto','showF12Status','showF12Message','showF12OpenMsg','showCopyMessage','showWelcomeMessage','waifuSize','waifuTipsSize','waifuFontSize','waifuToolFont','waifuToolLine','waifuToolTop','waifuMinWidth','waifuEdgeSide','waifuDraggable','waifuDraggableRevert'];
+		$config_option_arr = ['hitokotoAPI','canTurnToHomePage','canSwitchHitokoto','canSwitchModel','canSwitchTextures','canTakeScreenshot','canTurnToAboutPage','canCloseLive2d','modelStorage','modelRandMode','modelTexturesRandMode','showHitokoto','showF12Status','showF12Message','showF12OpenMsg','showCopyMessage','showWelcomeMessage','waifuSize','waifuTipsSize','waifuFontSize','waifuToolFont','waifuToolLine','waifuToolTop','waifuMinWidth','waifuEdgeSide','waifuDraggable','waifuDraggableRevert'];
 		//获取设置选项
 		$web_config = '';
 		foreach($config_option_arr as $key=>$val){
@@ -218,8 +220,6 @@ eof;
 				$live2d_option = 0;
 			}
 			
-		
-			
 			if(is_numeric($live2d_option)){
 				$web_config .='live2d_settings[\''.$val.'\'] = '.$live2d_option.';'; 
 			}else{
@@ -228,8 +228,22 @@ eof;
 			
 		}
 		//生成页面配置
+        $http =  self::is_https()?'https://':'http://';
+        $web_config .='live2d_settings[\'aboutPageUrl\'] = \''.$http.$_SERVER['HTTP_HOST'].'\'';
 		return $web_config;
 	}
 
-   
-}
+
+    private static function is_https()
+    {
+        if (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') {
+            return true;
+        } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+            return true;
+        } elseif (!empty($_SERVER['HTTP_FRONT_END_HTTPS']) && strtolower($_SERVER['HTTP_FRONT_END_HTTPS']) !== 'off') {
+            return true;
+        }
+        return false;
+    }
+
+    }
